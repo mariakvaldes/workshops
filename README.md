@@ -67,11 +67,9 @@ Every resource created in a workshop must carry these tags. The nightly cleanup 
 
 | Tag | Example | Purpose |
 |---|---|---|
-| `Environment` | `workshop` | **Required. Triggers nightly cleanup.** |
-| `Workshop` | `aws-data-lake` | Which lab |
-| `CohortDate` | `2026-07-07` | When the cohort ran |
-| `Student` | `alice-johnson` | Per-student namespace |
-| `AutoDelete` | `true` (default) | Set to `false` to protect a resource |
+| `workshop` | `aws-data-lake` | Which lab |
+| `date` | `dd-mmm-yyy` | When the cohort ran 26-Jul-2026 |
+| `autodelete` | `true` (default) | Set to `false` to protect a resource |
 
 All Terraform modules in this repo apply these tags via `local.common_tags`. Resources created manually (via console or CLI) must be tagged manually.
 
