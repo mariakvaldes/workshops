@@ -2,8 +2,8 @@
 """
 cleanup-student-resources.py
 
-Nightly sweep of lab resources (Lambda, S3, EC2, CloudFront, DynamoDB, log
-groups, key pairs, security groups). Deletion is tag-driven, not name-driven:
+Nightly sweep of lab resources (Lambda, S3, EC2, CloudFront, WAFv2 Web ACLs,
+DynamoDB, log groups, key pairs, security groups). Deletion is tag-driven, not name-driven:
 
     A resource is deleted UNLESS it is tagged autodelete=false.
 
@@ -448,6 +448,50 @@ for page in paginator.paginate():
                 cf.delete_origin_access_control(Id=oac_id, IfMatch=etag)
             except ClientError as e:
                 record_error("OAC", name, e)
+
+# ─── WAFv2 Web ACLs (CloudFront scope) ───────────────────────────────────────
+# CloudFront-associated Web ACLs only exist in the CLOUDFRONT scope, which is
+# only queryable via the us-east-1 endpoint regardless of --region. Run after
+# CloudFront distributions are deleted above, since a Web ACL still
+# associated with a distribution can't be deleted (WAFAssociatedItemException).
+
+print("\n── WAFv2 Web ACLs (CloudFront scope) ────────────────────────────")
+waf = session.client("wafv2", region_name="us-east-1")
+
+marker = None
+while True:
+    kwargs = {"Scope": "CLOUDFRONT"}
+    if marker:
+        kwargs["NextMarker"] = marker
+    resp = waf.list_web_acls(**kwargs)
+    for acl in resp.get("WebACLs", []):
+        name = acl["Name"]
+        if not name_matches_target(name):
+            continue
+        try:
+            tags = waf.list_tags_for_resource(ResourceARN=acl["ARN"]).get("TagInfoForResource", {}).get("TagList", [])
+        except ClientError as e:
+            record_error("WAF Web ACL (tags)", name, e)
+            continue
+        if not eligible_for_deletion(tags):
+            log_protected("WAF Web ACL", name)
+            continue
+        log("WAF Web ACL", name)
+        deleted.append(("WAF Web ACL", name))
+        if not DRY_RUN:
+            try:
+                detail = waf.get_web_acl(Name=name, Scope="CLOUDFRONT", Id=acl["Id"])
+                waf.delete_web_acl(
+                    Name=name,
+                    Scope="CLOUDFRONT",
+                    Id=acl["Id"],
+                    LockToken=detail["LockToken"],
+                )
+            except ClientError as e:
+                record_error("WAF Web ACL", name, e)
+    marker = resp.get("NextMarker")
+    if not marker:
+        break
 
 # ─── S3 Buckets ───────────────────────────────────────────────────────────────
 
