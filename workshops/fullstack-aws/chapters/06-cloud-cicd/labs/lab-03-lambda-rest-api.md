@@ -189,6 +189,54 @@ Expected response:
 
 ---
 
+## Part 6: Put CloudFront in Front of the API (Optional)
+
+
+1. Go to **CloudFront** → **Create distribution**
+2. Select Free plan
+3. Give a distribution name ( ignore the route 53 domain warning) -> next
+4. Origin type -> API gateway -> Select your API gateway
+2. **Origin domain**: paste your API Gateway invoke URL's host, e.g.
+   `abc123.execute-api.us-east-1.amazonaws.com` (host only, no `https://`)
+3. **Origin path**: /items
+4. Leave everything default and hit next
+5.. Click **Create distribution**
+
+Wait a few minutes for the distribution status to become **Enabled**, then
+copy the **Distribution domain name** (looks like `d123abc456.cloudfront.net`).
+
+Validate
+
+```
+curl https://d3gj5omi4eu3d4.cloudfront.net/items
+{"items": [{"id": 1, "name": "Laptop"}, {"id": 2, "name": "Monitor"}, {"id": 3, "name": "Keyboard"}]}%
+```
+
+### Test through CloudFront
+
+```bash
+curl https://<your-distribution-domain>/items
+```
+
+```bash
+curl -X POST https://<your-distribution-domain>/items \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Headphones"}'
+```
+
+Both should behave identically to hitting the `execute-api` URL directly in
+Part 4.
+
+### Why this matters for the capstone
+
+The [Task Tracker capstone project](../../../projects/01-task-tracker/) uses
+this exact pattern for its frontend: CloudFront in front of an S3 bucket for
+static assets, and a **separate** direct API Gateway URL for API calls (no
+CloudFront in front of the API there). Fronting the API with CloudFront here
+is optional practice, not something the capstone's Terraform sets up for you.
+
+---
+
 ## What You Learned
 
 | Concept | What happened |
@@ -198,12 +246,14 @@ Expected response:
 | Payload format 2.0 | API Gateway sends a structured event with `requestContext.http.method` |
 | JSON responses | Lambda returns `statusCode`, `headers`, and `body` |
 | Serverless debugging | CloudWatch Logs captures all print output: no SSH needed |
+| CloudFront in front of an API | Origin can be API Gateway, not just S3; caching must be handled deliberately |
 
 ---
 
 ## Cleanup
 
 ```
-1. API Gateway → student-rest-api-gw → Delete
-2. Lambda → student-rest-api → Delete
+1. CloudFront → your distribution → Disable, wait for it to deploy, then Delete
+2. API Gateway → student-rest-api-gw → Delete
+3. Lambda → student-rest-api → Delete
 ```
