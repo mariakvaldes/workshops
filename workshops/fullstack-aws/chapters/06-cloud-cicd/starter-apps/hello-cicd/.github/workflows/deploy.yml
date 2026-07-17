@@ -16,16 +16,20 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo apt-get update -y -q
-            sudo apt-get install -y -q nginx
 
-            sudo tee /var/www/html/index.html > /dev/null <<'EOF'
+          script: |
+            sudo dnf update -y
+            sudo dnf install nginx -y
+
+            sudo tee /usr/share/nginx/html/index.html > /dev/null <<'EOF'
             <!DOCTYPE html>
             <html>
-              <head><title>Maria Valdes</title></head>
+              <head>
+                <title>Hello World</title>
+              </head>
+
               <body>
-                <h1>Testing deployment from EC2!</h1>
+                <h1>Hello World from EC2!</h1>
                 <p>Deployed via GitHub Actions.</p>
               </body>
             </html>
